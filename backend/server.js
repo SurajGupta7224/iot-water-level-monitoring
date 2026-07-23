@@ -12,7 +12,7 @@ const PORT = process.env.PORT || 5000;
 
 async function startServer() {
   try {
-    // 1. Create database if it does not exist
+    // 1. Create database if local
     await ensureDatabaseExists();
 
     // 2. Test database connection & sync models (create tables)
@@ -22,19 +22,21 @@ async function startServer() {
     await sequelize.sync({ alter: true });
     console.log('✅ All tables (users, settings, water_logs, device_status) synced successfully.');
 
-    // 3. Seed default Admin user if users table is empty
+    // 3. Seed default Admin user if users table is empty (from process.env)
     const userCount = await User.count();
     if (userCount === 0) {
+      const adminUsername = process.env.ADMIN_USERNAME || 'admin';
+      const adminPassword = process.env.ADMIN_PASSWORD || 'admin123';
       await User.create({
-        username: 'admin',
-        password: 'admin123',
+        username: adminUsername,
+        password: adminPassword,
       });
-      console.log('👤 Default admin user created: username="admin", password="admin123"');
+      console.log(`👤 Admin user seeded from environment: username="${adminUsername}"`);
     }
 
     // 4. Start server
     app.listen(PORT, () => {
-      console.log(`🚀 Server is running on http://localhost:${PORT}`);
+      console.log(`🚀 Server is running on port ${PORT}`);
     });
   } catch (err) {
     console.error('❌ Failed to start server:', err.message);
