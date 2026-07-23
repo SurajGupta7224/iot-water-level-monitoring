@@ -1,42 +1,14 @@
 const { Sequelize } = require('sequelize');
-const mysql = require('mysql2/promise');
 require('dotenv').config();
 
 // Support full connection string (DATABASE_URL / MYSQL_URL / DB_URI) or individual variables
 const databaseUrl = process.env.DATABASE_URL || process.env.MYSQL_URL || process.env.DB_URI;
 
-let dbName     = (process.env.DB_NAME || '').trim();
-let dbUser     = (process.env.DB_USER || '').trim();
-let dbPassword = (process.env.DB_PASSWORD || '').trim();
-let dbHost     = (process.env.DB_HOST || '').trim();
-let dbPort     = (process.env.DB_PORT || '3306').trim();
-
-// Helper to ensure database exists before Sequelize connects (only for local MySQL)
-async function ensureDatabaseExists() {
-  if (databaseUrl) return;
-
-  const isLocal = dbHost === 'localhost' || dbHost === '127.0.0.1' || !dbHost;
-  if (!isLocal) {
-    console.log('ℹ️ Remote cloud database detected. Skipping root CREATE DATABASE check.');
-    return;
-  }
-
-  try {
-    const connection = await mysql.createConnection({
-      host: dbHost || 'localhost',
-      port: dbPort || 3306,
-      user: dbUser || 'root',
-      password: dbPassword || '',
-    });
-    if (dbName) {
-      await connection.query(`CREATE DATABASE IF NOT EXISTS \`${dbName}\`;`);
-    }
-    await connection.end();
-    console.log(`✅ Local database '${dbName}' verified/created successfully.`);
-  } catch (err) {
-    console.warn('⚠️ Warning checking/creating database:', err.message);
-  }
-}
+const dbName     = (process.env.DB_NAME || '').trim();
+const dbUser     = (process.env.DB_USER || '').trim();
+const dbPassword = (process.env.DB_PASSWORD || '').trim();
+const dbHost     = (process.env.DB_HOST || '').trim();
+const dbPort     = (process.env.DB_PORT || '3306').trim();
 
 const dialectOptions = {};
 if (process.env.DB_SSL === 'true') {
@@ -56,7 +28,7 @@ if (databaseUrl) {
   });
 } else {
   sequelize = new Sequelize(dbName, dbUser, dbPassword, {
-    host: dbHost,
+    host: dbHost || 'localhost',
     port: Number(dbPort) || 3306,
     dialect: 'mysql',
     dialectOptions,
@@ -65,4 +37,4 @@ if (databaseUrl) {
   });
 }
 
-module.exports = { sequelize, ensureDatabaseExists };
+module.exports = { sequelize };
