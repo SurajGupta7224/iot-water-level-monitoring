@@ -2,15 +2,20 @@ const { Sequelize } = require('sequelize');
 const mysql = require('mysql2/promise');
 require('dotenv').config();
 
-const dbName     = process.env.DB_NAME;
-const dbUser     = process.env.DB_USER;
-const dbPassword = process.env.DB_PASSWORD || '';
-const dbHost     = process.env.DB_HOST;
-const dbPort     = process.env.DB_PORT || 3306;
+// Support full connection string (DATABASE_URL / MYSQL_URL / DB_URI) or individual variables
+const databaseUrl = process.env.DATABASE_URL || process.env.MYSQL_URL || process.env.DB_URI;
+
+let dbName     = (process.env.DB_NAME || '').trim();
+let dbUser     = (process.env.DB_USER || '').trim();
+let dbPassword = (process.env.DB_PASSWORD || '').trim();
+let dbHost     = (process.env.DB_HOST || '').trim();
+let dbPort     = (process.env.DB_PORT || '3306').trim();
 
 // Helper to ensure database exists before Sequelize connects (only for local MySQL)
 async function ensureDatabaseExists() {
-  const isLocal = dbHost === 'localhost' || dbHost === '127.0.0.1';
+  if (databaseUrl) return;
+
+  const isLocal = dbHost === 'localhost' || dbHost === '127.0.0.1' || !dbHost;
   if (!isLocal) {
     console.log('ℹ️ Remote cloud database detected. Skipping root CREATE DATABASE check.');
     return;
@@ -18,10 +23,10 @@ async function ensureDatabaseExists() {
 
   try {
     const connection = await mysql.createConnection({
-      host: dbHost,
-      port: dbPort,
-      user: dbUser,
-      password: dbPassword,
+      host: dbHost || 'localhost',
+      port: dbPort || 3306,
+      user: dbUser || 'root',
+      password: dbPassword || '',
     });
     if (dbName) {
       await connection.query(`CREATE DATABASE IF NOT EXISTS \`${dbName}\`;`);
@@ -41,18 +46,23 @@ if (process.env.DB_SSL === 'true') {
   };
 }
 
-const sequelize = new Sequelize(dbName, dbUser, dbPassword, {
-  host: dbHost,
-  port: dbPort,
-  dialect: 'mysql',
-  dialectOptions,
-  logging: process.env.NODE_ENV === 'development' ? console.log : false,
-  pool: {
-    max: 5,
-    min: 0,
-    acquire: 30000,
-    idle: 10000,
-  },
-});
+let sequelize;
+if (databaseUrl) {
+  sequelize = new Sequelize(databaseUrl, {
+    dialect: 'mysql',
+    dialectOptions,
+    logging: process.env.NODE_ENV === 'development' ? console.log : false,
+    pool: { max: 5, min: 0, acquire: 30000, idle: 10000 },
+  });
+} else {
+  sequelize = new Sequelize(dbName, dbUser, dbPassword, {
+    host: dbHost,
+    port: Number(dbPort) || 3306,
+    dialect: 'mysql',
+    dialectOptions,
+    logging: process.env.NODE_ENV === 'development' ? console.log : false,
+    pool: { max: 5, min: 0, acquire: 30000, idle: 10000 },
+  });
+}
 
 module.exports = { sequelize, ensureDatabaseExists };
