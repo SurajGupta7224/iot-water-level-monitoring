@@ -22,16 +22,18 @@ async function startServer() {
     await sequelize.sync({ alter: true });
     console.log('✅ All tables (users, settings, water_logs, device_status) synced successfully.');
 
-    // 3. Seed default Admin user if users table is empty (from process.env)
+    // 3. Seed Admin user from environment variables if table is empty
     const userCount = await User.count();
     if (userCount === 0) {
-      const adminUsername = process.env.ADMIN_USERNAME || 'admin';
-      const adminPassword = process.env.ADMIN_PASSWORD || 'admin123';
-      await User.create({
-        username: adminUsername,
-        password: adminPassword,
-      });
-      console.log(`👤 Admin user seeded from environment: username="${adminUsername}"`);
+      const adminUsername = process.env.ADMIN_USERNAME;
+      const adminPassword = process.env.ADMIN_PASSWORD;
+      if (adminUsername && adminPassword) {
+        await User.create({
+          username: adminUsername,
+          password: adminPassword,
+        });
+        console.log(`👤 Admin user created from environment: username="${adminUsername}"`);
+      }
     }
 
     // 4. Start server

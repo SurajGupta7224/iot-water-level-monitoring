@@ -3,8 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { authAPI } from '../services/api';
 
 const Login = ({ onLoginSuccess }) => {
-  const [username, setUsername] = useState('admin');
-  const [password, setPassword] = useState('admin123');
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
   const [loading, setLoading]   = useState(false);
   const [error, setError]       = useState(null);
   const navigate = useNavigate();
@@ -30,11 +30,6 @@ const Login = ({ onLoginSuccess }) => {
     }
   };
 
-  const handleQuickFill = () => {
-    setUsername('admin');
-    setPassword('admin123');
-  };
-
   return (
     <div className="login-wrapper">
       <div className="login-box">
@@ -43,20 +38,6 @@ const Login = ({ onLoginSuccess }) => {
           <div className="login-box-icon">💧</div>
           <h1 className="login-box-title">WaterWatch IoT</h1>
           <p className="login-box-subtitle">Sign in to Admin Dashboard</p>
-        </div>
-
-        {/* Demo Credentials Box */}
-        <div className="demo-credentials-box">
-          <div className="demo-cred-header">
-            <span>🔑 Default Admin Credentials</span>
-            <button type="button" className="btn-quick-fill" onClick={handleQuickFill}>
-              Auto Fill
-            </button>
-          </div>
-          <div className="demo-cred-details">
-            <div>Username: <code>admin</code></div>
-            <div>Password: <code>admin123</code></div>
-          </div>
         </div>
 
         {error && <div className="alert alert-error">⚠️ {error}</div>}
@@ -69,7 +50,7 @@ const Login = ({ onLoginSuccess }) => {
               id="username"
               type="text"
               className="form-input login-input"
-              placeholder="Enter admin username"
+              placeholder="Enter username"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
               required
@@ -83,7 +64,7 @@ const Login = ({ onLoginSuccess }) => {
               id="password"
               type="password"
               className="form-input login-input"
-              placeholder="Enter admin password"
+              placeholder="Enter password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
