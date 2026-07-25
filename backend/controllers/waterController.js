@@ -96,8 +96,13 @@ const addReading = async (req, res) => {
     // Dynamically calculate tank status (Empty / Low / Medium / Full)
     const computedTankStatus = tank_status || calculateTankStatus(computedPercentage);
 
+    // Fetch latest reading to preserve pump status if not provided or in manual mode
+    const latestLog = await WaterLog.findOne({ order: [['created_at', 'DESC']] });
+    const previousPumpStatus = latestLog ? latestLog.pump_status : 'OFF';
+
+    let finalPumpStatus = pump_status || previousPumpStatus;
+
     // Auto Pump logic based on settings
-    let finalPumpStatus = pump_status || 'OFF';
     if (settings.auto_pump) {
       if (computedPercentage <= settings.minimum_water_level_percentage) {
         finalPumpStatus = 'ON';
