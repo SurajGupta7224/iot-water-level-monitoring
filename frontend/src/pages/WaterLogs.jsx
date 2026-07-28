@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { waterAPI } from '../services/api';
+import { getStatusFromDistance } from '../components/WaterTank';
 
 const WaterLogs = () => {
   const [logs, setLogs]         = useState([]);
@@ -24,105 +25,123 @@ const WaterLogs = () => {
   }, []);
 
   const handleDelete = async (id) => {
-    if (!window.confirm('Are you sure you want to delete this log reading?')) return;
+    if (!window.confirm('Delete this historical water reading?')) return;
     try {
       await waterAPI.remove(id);
       setLogs((prev) => prev.filter((log) => log.id !== id));
     } catch (err) {
-      alert(`Failed to delete log: ${err.message}`);
+      alert(`Failed to delete reading: ${err.message}`);
     }
   };
 
   const filteredLogs = logs.filter((log) => {
     const term = searchTerm.toLowerCase();
+    const distanceStr = log.measured_distance_cm ? `${log.measured_distance_cm} cm` : '';
+    const levelStr = log.water_level_percentage ? `${log.water_level_percentage}%` : '';
+    const statusInfo = getStatusFromDistance(log.measured_distance_cm, log.water_level_percentage);
+
     return (
-      (log.tank_status && log.tank_status.toLowerCase().includes(term)) ||
-      (log.pump_status && log.pump_status.toLowerCase().includes(term)) ||
-      (log.water_level_percentage && String(log.water_level_percentage).includes(term))
+      statusInfo.label.toLowerCase().includes(term) ||
+      levelStr.toLowerCase().includes(term) ||
+      distanceStr.toLowerCase().includes(term)
     );
   });
 
   if (loading) {
     return (
-      <div className="page-center">
-        <div className="spinner"></div>
-        <p>Loading historical water logs…</p>
+      <div className="page-center-loader">
+        <div className="water-ripple-spinner"></div>
+        <p className="loader-text">Loading Historical Water Logs…</p>
       </div>
     );
   }
 
   return (
-    <div className="page water-logs-page">
+    <div className="history-page-container">
       <div className="page-header">
         <div>
-          <h1 className="page-title">📋 Water Telemetry Logs</h1>
-          <p className="page-subtitle">Historical sensor readings & water level telemetry</p>
+          <h1 className="page-title">📈 Water Level History</h1>
+          <p className="page-subtitle">Complete chronological history of ultrasonic sensor telemetry</p>
         </div>
-        <button className="btn-refresh" onClick={fetchLogs}>🔄 Refresh Logs</button>
       </div>
 
-      {error && <div className="alert alert-error">⚠️ {error}</div>}
+      {error && <div className="error-banner">⚠️ {error}</div>}
 
       <div className="table-controls">
         <input
           type="text"
           className="form-input search-input"
-          placeholder="🔍 Search by percentage, status, or pump state..."
+          placeholder="🔍 Search history by percentage, distance, or status..."
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
         />
-        <span className="log-count-badge">Total Logs: {filteredLogs.length}</span>
+        <span className="log-count-badge">Total Readings: {filteredLogs.length}</span>
       </div>
 
-      <div className="history-section">
-        <div className="table-wrapper">
-          <table className="data-table">
+      <div className="history-table-card">
+        <div className="table-container">
+          <table className="water-data-table">
             <thead>
               <tr>
-                <th>ID</th>
-                <th>Water Level %</th>
-                <th>Current Volume</th>
+                <th>Timestamp / Time</th>
                 <th>Distance (cm)</th>
-                <th>Tank Status</th>
-                <th>Pump State</th>
-                <th>Timestamp</th>
+                <th>Water Level (%)</th>
+                <th>Status</th>
                 <th>Action</th>
               </tr>
             </thead>
             <tbody>
-              {filteredLogs.map((log) => (
-                <tr key={log.id}>
-                  <td>#{log.id}</td>
-                  <td>
-                    <span className="level-badge">{Number(log.water_level_percentage).toFixed(1)}%</span>
-                  </td>
-                  <td>{log.current_water_liters ? `${log.current_water_liters} L` : '—'}</td>
-                  <td>{log.measured_distance_cm ? `${log.measured_distance_cm} cm` : '—'}</td>
-                  <td>
-                    <span className={`status-pill ${log.tank_status ? log.tank_status.toLowerCase() : 'normal'}`}>
-                      {log.tank_status || 'NORMAL'}
-                    </span>
-                  </td>
-                  <td>
-                    <span className={`pump-badge ${log.pump_status === 'ON' ? 'pump-on-badge' : 'pump-off-badge'}`}>
-                      {log.pump_status || 'OFF'}
-                    </span>
-                  </td>
-                  <td>{new Date(log.created_at).toLocaleString()}</td>
-                  <td>
-                    <button
-                      className="btn-delete-log"
-                      onClick={() => handleDelete(log.id)}
-                      title="Delete Log"
-                    >
-                      🗑️
-                    </button>
-                  </td>
-                </tr>
-              ))}
+              {filteredLogs.map((log) => {
+                const timeStr = log.created_at
+                  ? new Date(log.created_at).toLocaleString('en-US', {
+                      dateStyle: 'medium',
+                      timeStyle: 'medium',
+                    })
+                  : '—';
+
+                const distance = Number(log.measured_distance_cm || 0).toFixed(1);
+                const percentage = Number(log.water_level_percentage || 0).toFixed(1);
+                const statusInfo = getStatusFromDistance(distance, percentage);
+
+                return (
+                  <tr key={log.id} className="table-row">
+                    <td className="time-col">{timeStr}</td>
+                    <td className="distance-col">{distance} cm</td>
+                    <td className="level-col">
+                      <span className="table-level-badge">{percentage}%</span>
+                    </td>
+                    <td className="status-col">
+                      <span
+                        className={`table-status-pill ${statusInfo.colorClass}`}
+                        style={{
+                          color: statusInfo.color === '#ffffff' ? '#ffffff' : statusInfo.color,
+                          borderColor: statusInfo.color,
+                          background: `${statusInfo.color}15`,
+                          boxShadow: `0 0 8px ${statusInfo.bgGlow}`,
+                        }}
+                      >
+                        <span className="pill-dot">{statusInfo.dot}</span>
+                        <span>{statusInfo.label}</span>
+                      </span>
+                    </td>
+                    <td className="action-col">
+                      <button
+                        className="btn-delete-icon"
+                        onClick={() => handleDelete(log.id)}
+                        title="Delete reading"
+                      >
+                        🗑️
+                      </button>
+                    </td>
+                  </tr>
+                );
+              })}
+
               {filteredLogs.length === 0 && (
                 <tr>
-                  <td colSpan={8} className="no-data">No matching water log records found.</td>
+                  <td colSpan={5} className="empty-table-msg">
+                    No matching water level readings found.
+                  </td>
                 </tr>
               )}
             </tbody>
